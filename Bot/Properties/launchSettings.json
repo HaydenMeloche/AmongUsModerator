@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Bot": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "token": "your_token_here"
+      }
+    }
+  }
+}
