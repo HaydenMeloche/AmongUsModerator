@@ -1,12 +1,15 @@
-﻿using System;
+﻿using Castle.DynamicProxy.Generators.Emitters.SimpleAST;
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
+using System.Xml.Serialization;
 
 namespace SDK
 {
-    internal class AmongUsReader
+    public class AmongUsReader
     {
         private static readonly AmongUsReader instance = new AmongUsReader();
         private bool exileCausesEnd;
@@ -34,6 +37,9 @@ namespace SDK
         public event EventHandler<ChatMessageEventArgs> ChatMessageAdded;
 
         public event EventHandler<LobbyEventArgs> JoinedLobby;
+
+        private bool foundModule = false;
+
 
         public void Run()
         {
@@ -96,8 +102,6 @@ namespace SDK
 
         private void loadModules()
         {
-            var foundModule = false;
-
             while (true)
             {
                 foreach (var module in ProcessMemory.modules)
@@ -427,6 +431,18 @@ namespace SDK
             var steam_apiCert = AuthenticodeTools.IsTrusted(Path.Combine(baseDllFolder, "steam_api.dll"));
             var steam_api64Cert = AuthenticodeTools.IsTrusted(Path.Combine(baseDllFolder, "steam_api64.dll"));
             return (steam_apiCert) && (steam_api64Cert);
+        }
+
+        public bool isConnected() => foundModule;
+
+        public IEnumerable<KeyValuePair<string, PlayerInfo>> GetDeadPlayers()
+        {
+            return newPlayerInfos.Where(player => player.Value.GetIsDead());
+        }
+
+        public IEnumerable<KeyValuePair<string, PlayerInfo>> GetAlivePlayers()
+        {
+            return newPlayerInfos.Where(player => !player.Value.GetIsDead() && player.Value.Disconnected == 0);
         }
     }
 }
