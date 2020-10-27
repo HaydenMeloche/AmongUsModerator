@@ -11,11 +11,10 @@ namespace Bot
 {
     public class Commands : ModuleBase<SocketCommandContext>
     {
-
         private ISocketMessageChannel channel;
         private SocketUser lobbyCreator;
         private SocketVoiceChannel voiceChannel;
-        private static Dictionary<String, ulong> discordAmongUsName = new Dictionary<string, ulong>();
+        private static Dictionary<string, ulong> discordAmongUsName = new Dictionary<string, ulong>();
 
         [Command("connect")]
         [Alias("start", "play")]
@@ -83,35 +82,62 @@ namespace Bot
                 foreach (var player in alivePlayers)
                 {
                     ulong userId;
-                    if (discordAmongUsName.TryGetValue(player.Key, out userId))
+                    if (discordAmongUsName.TryGetValue(player.Key.ToLower(), out userId))
                     {
-                        voiceChannel.Users.Where(x => x.Id == userId).First().ModifyAsync(x =>
-                        {
-                            x.Mute = false;
-                        });
+                        muteUser(voiceChannel.Users.Where(x => x.Id == userId).First(), false);
                     } else
                     {
-                        IEnumerable<SocketGuildUser> user = voiceChannel.Users.Where(x => x.Nickname.ToLower() == player.Key); 
+                        IEnumerable<SocketGuildUser> user = voiceChannel.Users.Where((x) =>
+                        {
+                            if (x.Nickname != null)
+                            {
+                                return x.Nickname.ToLower() == player.Key;
+                            }
+                            return false;
+                        });
                         if (user.Count() == 1)
                         {
-                            user.First().ModifyAsync(x =>
-                            {
-                                x.Mute = false;
-                            });
+                            muteUser(user.First(), false);
                         }
                     }
                 }
-
-            } else if (e.NewState == GameState.TASKS)
+            }
+            else if (e.NewState == GameState.TASKS)
             {
-                foreach (var user in voiceChannel.Users)
-                {
-                    user.ModifyAsync(x =>
-                    {
-                        x.Mute = true;
-                    });
-                }
+                muteUsers(voiceChannel.Users, true);
+            }
+            else if (e.NewState == GameState.LOBBY)
+            {
+                muteUsers(voiceChannel.Users, false);
             }
         }
+
+        /// <summary>
+        /// Change mute on a list of users
+        /// </summary>
+        /// <param name="users">users to modify</param>
+        /// <param name="mute">True to mute the user or False to unmute them</param>
+        private void muteUsers(IReadOnlyCollection<SocketGuildUser> users, bool mute)
+        {
+            foreach (var user in users)
+            {
+                muteUser(user, mute);
+            }
+        }
+
+        /// <summary>
+        /// Change the mute setting on a user
+        /// </summary>
+        /// <param name="socketGuildUser">User</param>
+        /// <param name="mute">True to mute the user or False to unmute them</param>
+        private void muteUser(SocketGuildUser socketGuildUser, bool mute)
+        {
+            socketGuildUser.ModifyAsync(x =>
+            {
+                x.Mute = mute;
+            });
+        }
+
+
     }
 }
