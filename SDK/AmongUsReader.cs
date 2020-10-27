@@ -53,7 +53,7 @@ namespace SDK
                         continue;
                     }
 
-                    Settings.output.WriteLine("GameMemReader", $"Connected to Among Us process ({ProcessMemory.process.Id}))");
+                    Console.WriteLine("GameMemReader", $"Connected to Among Us process ({ProcessMemory.process.Id}))");
 
 
                     // Register handlers for game-state change events.
@@ -110,11 +110,11 @@ namespace SDK
                         GameAssemblyPtr = module.BaseAddress;
                         if (!VerifySteamHash(module.FileName))
                         {
-                            Settings.output.WriteLine("GameVerifier", $"Client verification: FAIL.");
+                            Console.WriteLine("GameVerifier", $"Client verification: FAIL.");
                         }
                         else
                         {
-                            Settings.output.WriteLine("GameVerifier", $"Client verification: PASS.");
+                            Console.WriteLine("GameVerifier", $"Client verification: PASS.");
                         }
 
                         foundModule = true;
@@ -123,7 +123,7 @@ namespace SDK
 
                 if (!foundModule)
                 {
-                    Settings.output.WriteLine("GameMemReader", "Still looking for modules...");
+                    Console.WriteLine("Still looking for modules...");
                     Thread.Sleep(500); // delay and try again
                     ProcessMemory.LoadModules();
                 }
@@ -306,14 +306,13 @@ namespace SDK
         private GameState getGameState()
         {
             GameState state;
-            //int meetingHudState = /*meetingHud_cachePtr == 0 ? 4 : */ProcessMemory.ReadWithDefault<int>(GameAssemblyPtr, 4, 0xDA58D0, 0x5C, 0, 0x84); // 0 = Discussion, 1 = NotVoted, 2 = Voted, 3 = Results, 4 = Proceeding
             var meetingHud = ProcessMemory.Read<IntPtr>(GameAssemblyPtr, GameOffsets.MeetingHudOffset, 0x5C, 0);
             var meetingHud_cachePtr = meetingHud == IntPtr.Zero ? 0 : ProcessMemory.Read<uint>(meetingHud, 0x8);
             var meetingHudState =
                 meetingHud_cachePtr == 0
                     ? 4
-                    : ProcessMemory.ReadWithDefault(meetingHud, 4, 0x84); // 0 = Discussion, 1 = NotVoted, 2 = Voted, 3 = Results, 4 = Proceeding
-            var gameState = ProcessMemory.Read<int>(GameAssemblyPtr, GameOffsets.AmongUsClientOffset, 0x5C, 0, 0x64); // 0 = NotJoined, 1 = Joined, 2 = Started, 3 = Ended (during "defeat" or "victory" screen only)
+                    : ProcessMemory.ReadWithDefault(meetingHud, 4, 0x84);
+            var gameState = ProcessMemory.Read<int>(GameAssemblyPtr, GameOffsets.AmongUsClientOffset, 0x5C, 0, 0x64);
 
             switch (gameState)
             {
