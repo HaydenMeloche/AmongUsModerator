@@ -11,10 +11,16 @@ namespace Bot
 {
     public class Commands : ModuleBase<SocketCommandContext>
     {
+        private DataStore dataStore;
         private ISocketMessageChannel channel;
         private SocketUser lobbyCreator;
         private SocketVoiceChannel voiceChannel;
-        private static Dictionary<string, ulong> discordAmongUsName = new Dictionary<string, ulong>();
+
+        public Commands()
+        {
+            dataStore = new DataStore();
+        }
+        
 
         [Command("connect")]
         [Alias("start", "play")]
@@ -45,8 +51,23 @@ namespace Bot
         [Command("set-name")]
         public Task PingAsync(String inGameName)
         {
-            discordAmongUsName.Add(inGameName.ToLower(), Context.Message.Author.Id);
-            return ReplyAsync($"{Context.Message.Author.Mention} set `{inGameName}` as your in game name.");
+            // don't set if names are the same
+            if (inGameName == Context.Message.Author.Username)
+            {
+                return ReplyAsync($"{Context.Message.Author.Mention} since your name is the same as in game, there is no need to set it.");
+            } else
+            {
+                Member member = dataStore.members.Find(Context.Message.Author.Id);
+                if (member != null)
+                {
+                    member.amongUsName = inGameName;
+                } else
+                {
+                    dataStore.Add(new Member { amongUsName = inGameName, discordId = Context.Message.Author.Id });
+                }
+                dataStore.SaveChanges();
+                return ReplyAsync($"{Context.Message.Author.Mention} set `{inGameName}` as your in game name.");
+            }
         }
 
         private void ChatMessageHandler(object sender, ChatMessageEventArgs e)
@@ -81,19 +102,17 @@ namespace Bot
                 var alivePlayers = AmongUsReader.getInstance().GetAlivePlayers();
                 foreach (var player in alivePlayers)
                 {
-                    ulong userId;
-                    if (discordAmongUsName.TryGetValue(player.Key.ToLower(), out userId))
+                    //TODO: will act odd if a lot of people have the same name
+                    var member = dataStore.members.First(member => member.amongUsName.Equals(player.Key, StringComparison.OrdinalIgnoreCase));
+                    if (member != null)
                     {
-                        muteUser(voiceChannel.Users.Where(x => x.Id == userId).First(), false);
-                    } else
+                        muteUser(voiceChannel.Users.Where(x => x.Id == member.discordId).First(), false);
+                    }
+                    else
                     {
                         IEnumerable<SocketGuildUser> user = voiceChannel.Users.Where((x) =>
                         {
-                            if (x.Nickname != null)
-                            {
-                                return x.Nickname.ToLower() == player.Key;
-                            }
-                            return false;
+                            return x.Username.Equals(player.Key, StringComparison.OrdinalIgnoreCase);
                         });
                         if (user.Count() == 1)
                         {
